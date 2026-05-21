@@ -26,3 +26,4 @@ sudo ln -s "$(pwd)/rfc.py" /usr/local/bin/rfc
 - [ ] Обработка ошибко;
 - [ ] Проверка актуальности index файла;
 - [ ] Тесты;
+- [ ] Make или install.sh

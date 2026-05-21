@@ -25,14 +25,11 @@ if [ ! -d "/usr/local/bin" ]; then
 fi
 
 # Создаём симлинк
-echo -e "Создаем линк..."
 sudo ln -sf "$SOURCE_FILE" "$TARGET_LINK"
 
 # Проверяем успешность
 if [ -L "$TARGET_LINK" ] && [ -e "$TARGET_LINK" ]; then
-    echo -e "Установленно!"
-    echo ""
-    echo -e "   Запустите \"rfc -h\" для получения помощи =)."
+    echo -e "Успешно =)"
 else
     echo -e "Упс... Установка сфейлена."
     exit 1

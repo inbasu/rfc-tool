@@ -23,4 +23,3 @@ chmod +x install.sh && ./install.sh
 - [ ] Обработка ошибко;
 - [ ] Проверка актуальности index файла;
 - [ ] Тесты;
-- [ ] Make или install.sh

@@ -18,14 +18,15 @@ HELP_TEXT = """\
 Options:
     -f, --find <query>    Search RFCs by keyword (table format)
     -l, --list            List cached RFCs (table format)
-    -c, --clear           Clear cache
+    -c, --clear [N...]    Clear cache (all or specific RFC numbers)
     -h, --help            Show this help
 
 Examples:
     rfc 3261              Open RFC 3261 (download if not cached)
     rfc -f sip            Search for RFCs containing "sip"
     rfc -l                Show all cached RFCs
-    rfc -c                Clear cache"""
+    rfc -c 3261 3262      Delete one or multiple RFCs
+    rfc -c                Clear all cache"""
 
 
 @dataclass

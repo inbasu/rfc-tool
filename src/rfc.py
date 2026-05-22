@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 
-import json
-import os
-import re
 import sys
 from argparse import ArgumentParser
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union
+from typing import NamedTuple, Optional, Union
 from urllib.request import urlretrieve
 from urllib.error import HTTPError
+# Часть импортов перенесена в функции для повышения производительности.
 
 
 RFC_CACHE_DIR = Path.home() / "Documents/.rfc"
 RFC_URL = "https://www.rfc-editor.org"
+
 HELP_TEXT = """\
 Options:
     -f, --find <query>    Search RFCs by keyword (table format)
@@ -29,14 +27,15 @@ Examples:
     rfc -c                Clear all cache"""
 
 
-@dataclass
-class RFC:
+class RFC(NamedTuple):
     number: int
     title: str
     file_path: Optional[Path] = None
 
 
 class FileManager:
+    __slots__ = {"_root_path", "_titles_json"}
+
     def __init__(self, cache_root_dir: Path) -> None:
         self._root_path = cache_root_dir
         self._root_path.mkdir(exist_ok=True)
@@ -49,13 +48,17 @@ class FileManager:
         return list(self._root_path.glob("RFC*.txt"))
 
     def save_titles_cache(self, titles: dict[str, str]) -> None:
+        from json import dumps
+
         with open(self._titles_json, "w") as file:
-            file.write(json.dumps(titles))
+            file.write(dumps(titles))
 
     def load_titles_cache(self) -> dict[str, str]:
+        from json import load
+
         if self._titles_json.exists():
             with open(self._titles_json, "r") as file:
-                return json.load(file)
+                return load(file)
         return {}
 
     def clear(self) -> None:
@@ -68,14 +71,15 @@ class FileManager:
 
 
 class DownloadManager:
-    def __init__(self, url: str, file_manager: FileManager) -> None:
-        self._file_manager = file_manager
+    __slots__ = {"base_url", "index_url"}
+
+    def __init__(self, url: str) -> None:
         self.base_url = url + "/rfc"
         self.index_url = url + "/rfc/rfc-index.txt"
 
-    def download_rfc_txt(self, rfc: int) -> Union[Path, None]:
+    def download_rfc_txt(self, rfc: int, file_manager: FileManager) -> Union[Path, None]:
         """Download RFC file if it not cached"""
-        rfc_file = self._file_manager.get_rfc_file_path(rfc)
+        rfc_file = file_manager.get_rfc_file_path(rfc)
         if rfc_file.exists():
             return rfc_file
         try:
@@ -89,10 +93,10 @@ class DownloadManager:
             print("Unexpected error.")
             return None
 
-    def download_index_file(self) -> None:
+    def download_index_file(self, file_manager: FileManager) -> None:
         try:
             print("Downloading index file.")
-            urlretrieve(self.index_url, self._file_manager.index_file)
+            urlretrieve(self.index_url, file_manager.index_file)
         except Exception:
             print("Failed to download index file.")
 
@@ -102,10 +106,10 @@ class RFCViewService:
 
     def __init__(self) -> None:
         self._file_manager = FileManager(RFC_CACHE_DIR)
-        self._download_manager = DownloadManager(RFC_URL, self._file_manager)
 
     def open_rfc_file(self, rfc_id: int) -> None:
-        rfc_file = self._download_manager.download_rfc_txt(rfc_id)
+        download_manager = DownloadManager(RFC_URL)
+        rfc_file = download_manager.download_rfc_txt(rfc_id, self._file_manager)
         if not rfc_file:
             return
         titles = self._file_manager.load_titles_cache()
@@ -116,7 +120,9 @@ class RFCViewService:
                 titles[rfc_num] = title
                 self._file_manager.save_titles_cache(titles)
 
-        os.system(f"less -R '{rfc_file}'")
+        from os import system
+
+        system(f"less -R '{rfc_file}'")
 
     def find_rfc(self, query: str) -> None:
         q = query.lower()
@@ -171,8 +177,11 @@ class RFCViewService:
         return None
 
     def _rfc_indexes(self) -> list[RFC]:
+        from re import match, split, sub
+
         if not self._file_manager.index_file.exists():
-            self._download_manager.download_index_file()
+            download_manager = DownloadManager(RFC_URL)
+            download_manager.download_index_file(self._file_manager)
 
         with open(self._file_manager.index_file, "r", errors="ignore") as file:
             lines = file.readlines()
@@ -181,9 +190,9 @@ class RFCViewService:
         i = 0
         while i < len(lines):
             line = lines[i].strip()
-            if match := re.match(r"^(\d+)\s+(.+)", line):
-                rfc_num = int(match.group(1))
-                title_parts = [match.group(2)]
+            if mtch := match(r"^(\d+)\s+(.+)", line):
+                rfc_num = int(mtch.group(1))
+                title_parts = [mtch.group(2)]
                 i += 1
                 while i < len(lines) and lines[i].startswith("     "):
                     # Собираем многострочник к одну строку
@@ -191,8 +200,8 @@ class RFCViewService:
                     i += 1
 
                 title = " ".join(title_parts)
-                title = re.split(r"\s+\(Format:|\.\s+[A-Z][a-z]+\.\s+\w+\s+\d{4}", title)[0]
-                title = re.sub(r"\s+\(.*$", "", title).split(".")[0]
+                title = split(r"\s+\(Format:|\.\s+[A-Z][a-z]+\.\s+\w+\s+\d{4}", title)[0]
+                title = sub(r"\s+\(.*$", "", title).split(".")[0]
                 result.append(RFC(number=rfc_num, title=title.strip()))
             else:
                 i += 1

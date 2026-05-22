@@ -145,9 +145,23 @@ class RFCViewService:
                 title = title if (len(title) <= 50) else title[:47] + "..."
             print(f"{rfc_id:<8} {title}")
 
-    def clear_cache(self) -> None:
-        self._file_manager.clear()
-        print("Downloaded files deleted.")
+    def clear_cache(self, rfcs: Optional[list[int]] = None) -> None:
+        if not rfcs:
+            self._file_manager.clear()
+            print("Downloaded files deleted.")
+            return
+        deleted: list[str] = []
+        for rfc in rfcs:
+            file = self._file_manager.get_rfc_file_path(rfc)
+            if not file.exists():
+                print(f"No RFC-{rfc} file in cache.")
+                continue
+            file.unlink()
+            deleted.append(str(rfc))
+        if deleted:
+            print(f"RFC{'s: ' if len(deleted) > 1 else ''}{', '.join(deleted)} deleted.")
+            return
+        print("No one RFC file to delete.")
 
     def _get_title_from_index(self, rfc_num: str) -> Union[str, None]:
         for rfc in self._rfc_indexes():
@@ -190,7 +204,7 @@ def main() -> None:
     parser.add_argument("number", nargs="?", type=int, help="Open RFC manual")
     parser.add_argument("-f", "--find", type=str, help="Find RFCs by keyword")
     parser.add_argument("-l", "--list", action="store_true", help="List cached RFC files")
-    parser.add_argument("-c", "--clear", action="store_true", help="Delete cached RFC")
+    parser.add_argument("-c", "--clear", nargs="*", type=int, help="Delete cached RFC")
     parser.add_argument("-h", "--help", action="store_true", help="Show help")
 
     args = parser.parse_args()
@@ -202,8 +216,8 @@ def main() -> None:
         processor.find_rfc(args.find)
     elif args.list:
         processor.list_downloaded_rfcs()
-    elif args.clear:
-        processor.clear_cache()
+    elif args.clear is not None:
+        processor.clear_cache(args.clear if args.clear else None)
     elif args.number:
         processor.open_rfc_file(args.number)
     else:

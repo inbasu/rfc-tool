@@ -28,10 +28,7 @@ chmod +x install.sh && ./install.sh
 ```
 
 #### ToDO:
-- [ ] Обработка ошибко;
+- [ ] Обработка ошибок;
 - [ ] Проверка актуальности index файла;
 - [ ] Тесты;
 
-**Version:** 0.9.0  
-**Author:** @inbasu  
-**License:** MIT
